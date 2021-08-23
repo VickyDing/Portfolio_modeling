@@ -1,0 +1,130 @@
+---
+title: "Build portfolio"
+output: pdf_document
+---
+## 3) Portfolio modeling
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+library(mosaic)
+library(quantmod)
+library(foreach)
+seed = 1
+```
+
+```{r echo = FALSE, warning = FALSE, messages = FALSE, results = 'hide'}
+#create 3 portfolios of 3 - 10 ETFs
+#All 3 Portfolios will contain same ETFs
+# VCIT - Vanguard Intermediate-Term Corp Bond Idx Fund
+# SPY - SPDR S&P ETF Trust
+# IYR - iShares US Real Estate ETF
+# USO - United States Oil Fund LP
+
+#Portfolio #1 All 4 Equal Weight
+#Portfolio #2 70% SPY, 10% other 3
+#Portfolio #3 70% VCIT, 10% other 3
+set.seed(seed)
+
+options("getSymbols.warning4.0"=FALSE)
+
+mystocks = c('VCIT', 'SPY', 'IYR', 'USO')
+stock_data = getSymbols(mystocks, from = '2016-08-03')
+
+for(ticker in mystocks) {
+	expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+	eval(parse(text=expr))
+}
+
+all_returns = cbind(ClCl(VCITa), ClCl(SPYa), ClCl(IYRa), ClCl(USOa))
+all_returns = as.matrix(na.omit(all_returns))
+
+portfolio_starting_total = 100000
+num_days = 20
+```
+
+```{r echo = FALSE, warning = FALSE, messages = FALSE}
+# Portfolio 1: this portfolio gives equal weight to all 4 ETFs
+set.seed(seed)
+port_weights1 = c(.25, .25, .25, .25)
+portfolio1 = foreach(i=1:5000, .combine='rbind') %do% {
+  initial_portfolio1 = portfolio_starting_total
+  holdings1 = initial_portfolio1 * port_weights1
+  portfolio_value_period1 = rep(0, num_days)
+  for(day in 1:num_days){
+    returns1 = sample(all_returns, 1, orig.ids = FALSE)
+    holdings1 = holdings1 + holdings1 * returns1
+    new_total1 = sum(holdings1)
+    portfolio_value_period1[day] = new_total1
+    holdings1 = new_total1 * port_weights1
+  }
+  portfolio_value_period1
+}
+
+print('Portfolio 1:')
+hist(portfolio1[, num_days], breaks = 25, xlab = 'Ending Value', main = 'Portfolio 1')
+port1_5 <- quantile(portfolio1[, num_days] - portfolio_starting_total, prob = .05)
+print('5% Var:')
+port1_5
+print('Median Return:')
+quantile(portfolio1[, num_days] - portfolio_starting_total, prob = .5)
+#quantile(portfolio1[, num_days] - portfolio_starting_total, prob = .975)
+```
+
+```{r echo = FALSE, warning = FALSE, messages = FALSE}
+# Portfolio 2: this portfolio gives more weight to the equity ETF
+set.seed(seed)
+port_weights2 = c(.1, .7, .1, .1)
+portfolio2 = foreach(i=1:5000, .combine='rbind') %do% {
+  initial_portfolio2 = portfolio_starting_total
+  holdings2 = initial_portfolio2 * port_weights2
+  portfolio_value_period2 = rep(0, num_days)
+  for(day in 1:num_days){
+    returns2 = sample(all_returns, 1, orig.ids = FALSE)
+    holdings2 = holdings2 + holdings2 * returns2
+    new_total2 = sum(holdings2)
+    portfolio_value_period2[day] = new_total2
+    holdings2 = new_total2 * port_weights2
+  }
+  portfolio_value_period2
+}
+
+print('Portfolio 2:')
+hist(portfolio2[, num_days], breaks = 25, xlab = 'Ending Value', main = 'Portfolio 2')
+port2_5 <- quantile(portfolio2[, num_days] - portfolio_starting_total, prob = .05)
+print('5% VaR:')
+port2_5
+print('Median Return:')
+quantile(portfolio2[, num_days] - portfolio_starting_total, prob = .5)
+#quantile(portfolio2[, num_days] - portfolio_starting_total, prob = .975)
+```
+
+```{r echo = FALSE, warning = FALSE, messages = FALSE}
+# Portfolio 3: this portfolio gives more weight to the bond ETF
+set.seed(seed)
+port_weights3 = c(.7, .1, .1, .1)
+portfolio3 = foreach(i=1:5000, .combine='rbind') %do% {
+  initial_portfolio3 = portfolio_starting_total
+  holdings3 = initial_portfolio3 * port_weights3
+  portfolio_value_period3 = rep(0, num_days)
+  for(day in 1:num_days){
+    returns3 = sample(all_returns, 1, orig.ids = FALSE)
+    holdings3 = holdings3 + holdings3 * returns3
+    new_total3 = sum(holdings3)
+    portfolio_value_period3[day] = new_total3
+    holdings3 = new_total3 * port_weights3
+  }
+  portfolio_value_period3
+}
+
+print('Portfolio 3:')
+hist(portfolio3[, num_days], breaks = 25, xlab = 'Ending Value', main = 'Portfolio 3')
+port3_5 <- quantile(portfolio3[, num_days] - portfolio_starting_total, prob = .05)
+print('5% VaR:')
+port3_5
+print('Median Return:')
+quantile(portfolio3[, num_days] - portfolio_starting_total, prob = .5)
+#quantile(portfolio3[, num_days] - portfolio_starting_total, prob = .975)
+```
+
+### Summary:
+For the 3 portfolios, we decided to use the same 4 ETFs, but we decided to change the weights of each ETF in the different portfolio. The first portfolio is evenly divided between the 4 ETFs. That means that the weight of bonds, equity, real estate, and oil are all even and rebalanced to be even every day. The second portfolio is a much more aggressive portfolio. This portfolio has 70% of its value in equity. That leaves just 10% each in bonds, real estate, and oil. The last portfolio is a quite conservative portfolio. This portfolio has 70% of its value in bonds. That leaves just 10% each in equity, real estate and oil.
+The 5% VaR that we are testing using bootstrapping confirm our thoughts of which portfolio will be the most aggressive and which portfolio is the least aggressive.
+The first portfolio has a 5% VaR of -8819.486 with a median return of 719.9702. The second portfolio has a 5% VaR of -7461.429 with a median return of 1159.962. The third portfolio has a 5% VaR of -4544.339 with a median return of 560.9805. The only values that go against the expected values of the portfolios are the 5% VaRs for portfolio 1 and 2. The more aggressive portfolio's 5% VaRs potential losses were less than the well diversified portfolio. All other values make sense. The most aggressive portfolio can make the most money, and the least aggressive portfolio can make the least money but will lose the least amount of money at the bottom of the confidence interval. 
